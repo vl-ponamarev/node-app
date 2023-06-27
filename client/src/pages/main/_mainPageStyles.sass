@@ -1,0 +1,25 @@
+.main
+    display: flex
+    flex-direction: column
+    align-items: center
+
+.topContainer
+    display: flex
+    justify-content: center
+    flex-direction: column
+
+.buttonContainer
+    display: flex
+    justify-content: flex-end
+    margin: 4% 0% 4% 0%
+    width: 100%
+
+.gridContainer
+    display: grid
+    grid-template-columns: 1fr 1fr
+    gap: 20px
+    justify-items: center
+
+@media (max-width: 768px)
+    .gridContainer
+        grid-template-columns: 1fr
