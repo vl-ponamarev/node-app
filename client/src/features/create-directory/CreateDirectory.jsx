@@ -11,7 +11,7 @@ const CreateDirectory = ({ isActionPanel = false, selectedMenuActionInfo }) => {
   };
   useEffect(() => {
     isActionPanel && onClick();
-  }, [selectedMenuActionInfo]);
+  }, [selectedMenuActionInfo, isActionPanel]);
 
   return (
     <>

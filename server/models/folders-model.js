@@ -10,6 +10,11 @@ const foldersSchema = new mongoose.Schema({
     default: 'null',
     required: true,
   },
+  owner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
   creationDate: {
     type: Date,
     default: Date.now,

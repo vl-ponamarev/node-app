@@ -25,7 +25,7 @@ const MoveToCopyToModal = ({ open, setOpen, data, setSelectedMenuActionInfo = ()
       })
       .filter(folder => (folder ? folder : null));
     setFolders(folders);
-  }, [data?.dataToMove]);
+  }, [data?.dataToMove, filesStore.folders]);
 
   const files = data?.dataToMove.filter(item => !folders.includes(item));
   const handleOk = e => {

@@ -4,7 +4,15 @@ const UserModel = require('../models/user-model')
 const mailService = require('./mail-service')
 const tokenService = require('./tokenService')
 const UserDto = require('../dtos/user-dto')
-const ApiError = require('../exeptions/api-error')
+const ApiError = require('../exceptions/api-error')
+
+function resolveRole(email) {
+  const adminEmails = (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map(item => item.trim().toLowerCase())
+    .filter(Boolean);
+  return adminEmails.includes(email.toLowerCase()) ? 'admin' : 'user';
+}
 
 class UserService {
   async registration(email, password) {
@@ -18,11 +26,21 @@ class UserService {
       email,
       password: hashPassword,
       activationLink,
+      role: resolveRole(email),
     });
-    await mailService.sendActivationMail(
-      email,
-      `${process.env.API_URL}/activate/${activationLink}`,
-    );
+
+    try {
+      await mailService.sendActivationMail(
+        email,
+        `${process.env.API_URL}/activate/${activationLink}`,
+      );
+    } catch (error) {
+      await UserModel.deleteOne({ _id: user._id });
+      throw ApiError.ServiceUnavailable(
+        'Не удалось отправить письмо для подтверждения почты. Попробуйте зарегистрироваться позже.',
+      );
+    }
+
     const userDto = new UserDto(user);
     const tokens = tokenService.generateTokens({ ...userDto });
     await tokenService.saveToken(userDto.id, tokens.refreshToken);
@@ -54,7 +72,7 @@ class UserService {
     }
     const updatedUser = await UserModel.findOneAndUpdate(
       { email },
-      { $set: { remember } },
+      { $set: { remember, role: resolveRole(email) } },
       { new: true },
     );
     const userDto = new UserDto(updatedUser);

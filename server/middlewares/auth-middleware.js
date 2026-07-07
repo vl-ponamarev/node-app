@@ -1,4 +1,4 @@
-const ApiError = require('../exeptions/api-error')
+const ApiError = require('../exceptions/api-error')
 const tokenService = require('../service/tokenService')
 
 module.exports = function (req, res, next) {

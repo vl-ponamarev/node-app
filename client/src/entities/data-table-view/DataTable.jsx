@@ -14,7 +14,6 @@ import Download from 'features/download/Download';
 const DataTable = ({ initialData, setLevelUp, selectedRowKeys, setSelectedRowKeys }) => {
   const { filesStore } = useContext(FilesContext);
   const [contextMenu, setContextMenu] = useState(null);
-  const [selectedRowId, setSelectedRowId] = useState(null);
   const [selectedMenuActionInfo, setSelectedMenuActionInfo] = useState({
     id: '',
     action: '',
@@ -95,6 +94,8 @@ const DataTable = ({ initialData, setLevelUp, selectedRowKeys, setSelectedRowKey
                 record?.type,
                 setOpen,
                 isRenameButton,
+                false,
+                true,
               )}
               trigger={['click']}
             >
@@ -124,7 +125,6 @@ const DataTable = ({ initialData, setLevelUp, selectedRowKeys, setSelectedRowKey
         record,
       });
       selectedRowKeys.includes(id) ? event.preventDefault() : setSelectedRowKeys([id]);
-      setSelectedRowId(id);
     }
   };
 
@@ -161,7 +161,7 @@ const DataTable = ({ initialData, setLevelUp, selectedRowKeys, setSelectedRowKey
       method: selectedMenuActionInfo?.action === 'move' ? 'move' : 'copy',
       dataToMove: selectedKeys,
     });
-  }, [selectedMenuActionInfo.action]);
+  }, [selectedMenuActionInfo.action, selectedKeys]);
 
   const dataToRename = {
     type: selectedMenuActionInfo.type,
@@ -206,6 +206,8 @@ const DataTable = ({ initialData, setLevelUp, selectedRowKeys, setSelectedRowKey
               contextMenu?.record?.type,
               setOpen,
               isRenameButton,
+              false,
+              true,
             )
           }
           trigger={['click']}

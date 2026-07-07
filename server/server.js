@@ -1,3 +1,4 @@
+const path = require('path')
 const express = require('express')
 const morgan = require('morgan')
 const cors = require('cors')
@@ -9,16 +10,21 @@ const FileStore = require('session-file-store')(session)
 const router = require('./routes/index')
 const errorMiddleware = require('./middlewares/error-middleware')
 
-require('dotenv').config()
+const required = ['DB_URL', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'SESSION_SECRET', 'UPLOAD_URL']
+const missing = required.filter(name => !process.env[name])
+if (missing.length) {
+  console.error(`Missing required env vars: ${missing.join(', ')}`)
+  process.exit(1)
+}
 
 const app = express()
-const { PORT } = process.env
+const PORT = process.env.PORT || 4000
+const SESSION_PATH = process.env.SESSION_PATH || path.join(__dirname, 'sessions')
 
 app.use(
   cors({
     credentials: true,
-    // origin: process.env.CLIENT_URL,
-    origin: true,
+    origin: process.env.CLIENT_URL || true,
   }),
 )
 app.use(morgan('dev'))
@@ -28,10 +34,10 @@ app.use(express.urlencoded({ extended: true }))
 app.use(
   session({
     name: 'sid',
-    secret: process.env.SESSION_SECRET ?? 'test',
+    secret: process.env.SESSION_SECRET,
     resave: true,
     store: new FileStore({
-      path: '/home/vladimir/Documents/Текущие_проекты/file-manager/server/sessions',
+      path: SESSION_PATH,
     }),
     saveUninitialized: false,
     cookie: {
@@ -42,7 +48,6 @@ app.use(
 );
 
 app.use('/api', router)
-app.use('/api/post', router)
 app.use(errorMiddleware)
 
 const start = async () => {
@@ -56,4 +61,9 @@ const start = async () => {
     console.error(e);
   }
 }
-start()
+
+if (require.main === module) {
+  start()
+}
+
+module.exports = { app, start }

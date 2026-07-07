@@ -40,7 +40,7 @@ const BreadcrumbsComponent = () => {
     } else {
       setFoldersList([{ foldername: 'Folders', id: rootFolderId }])
     }
-  }, [filesStore.openFolderParentsList, filesStore.openFolder])
+  }, [filesStore.openFolderParentsList, filesStore.openFolder, filesStore.folders])
 
   return (
     <Breadcrumb

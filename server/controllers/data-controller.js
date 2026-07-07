@@ -1,5 +1,15 @@
+const { validationResult } = require('express-validator')
 const DataService = require('../service/data-service')
-const userService = require('../service/user-service')
+const ApiError = require('../exceptions/api-error')
+
+function ensureValid(req, next) {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    next(ApiError.BadRequest('Validation error', errors.array()));
+    return false;
+  }
+  return true;
+}
 
 class DataController {
   async saveFiles(req, res, next) {
@@ -9,7 +19,7 @@ class DataController {
           return next(err);
         }
         const files = req.files;
-        const owner = req.body.owner;
+        const owner = req.user.id;
         const folder = req.body.folder;
 
         const fileDocs = files?.map(file => ({
@@ -38,10 +48,9 @@ class DataController {
   }
 
   async getFilesByFolderId(req, res, next) {
-    const folderId = req.params.folderId;
-
+    if (!ensureValid(req, next)) return;
     try {
-      const files = await DataService.getFilesByFolderId(folderId);
+      const files = await DataService.getFilesByFolderId(req.params.folderId);
       return res.json(files);
     } catch (error) {
       next(error);
@@ -58,8 +67,12 @@ class DataController {
   }
 
   async createFolder(req, res, next) {
+    if (!ensureValid(req, next)) return;
     try {
-      const response = await DataService.createFolder(req.body);
+      const response = await DataService.createFolder({
+        ...req.body,
+        owner: req.user.id,
+      });
       return res.json(response);
     } catch (error) {
       next(error);
@@ -67,10 +80,9 @@ class DataController {
   }
 
   async editFolder(req, res, next) {
+    if (!ensureValid(req, next)) return;
     try {
-      const id = { _id: req.params.id };
-      const { formData } = req.body;
-      const post = await DataService.editFolder(id, formData);
+      const post = await DataService.editFolder(req.params.id, req.body.formData, req.user);
       return res.json(post);
     } catch (error) {
       next(error);
@@ -78,10 +90,9 @@ class DataController {
   }
 
   async editFile(req, res, next) {
+    if (!ensureValid(req, next)) return;
     try {
-      const id = { _id: req.params.id };
-      const { formData } = req.body;
-      const post = await DataService.editFile(id, formData);
+      const post = await DataService.editFile(req.params.id, req.body.formData, req.user);
       return res.json(post);
     } catch (error) {
       next(error);
@@ -90,7 +101,7 @@ class DataController {
 
   async deleteFolders(req, res, next) {
     try {
-      await DataService.deleteFolders(req.body);
+      await DataService.deleteFolders(req.body, req.user);
       return res.sendStatus(200);
     } catch (error) {
       next(error);
@@ -99,7 +110,7 @@ class DataController {
 
   async deleteFiles(req, res, next) {
     try {
-      const response = await DataService.deleteFiles(req.body);
+      const response = await DataService.deleteFiles(req.body, req.user);
       return res.status(200).json({ message: 'Success', response });
     } catch (e) {
       next(e);
@@ -108,15 +119,16 @@ class DataController {
 
   async downloadData(req, res, next) {
     try {
-      await DataService.download(req.body, res);
+      await DataService.download(req.body, res, req.user.id);
     } catch (e) {
       next(e);
     }
   }
 
   async moveItems(req, res, next) {
+    if (!ensureValid(req, next)) return;
     try {
-      const response = await DataService.moveItems(req.body);
+      const response = await DataService.moveItems(req.body, req.user);
       return res.status(200).json({ message: 'Success', response });
     } catch (e) {
       next(e);
@@ -124,8 +136,9 @@ class DataController {
   }
 
   async copyItems(req, res, next) {
+    if (!ensureValid(req, next)) return;
     try {
-      const response = await DataService.copyItems(req.body);
+      const response = await DataService.copyItems(req.body, req.user);
       return res.status(200).json({ message: 'Success', response });
     } catch (e) {
       next(e);

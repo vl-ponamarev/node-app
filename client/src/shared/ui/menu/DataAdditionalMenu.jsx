@@ -17,6 +17,7 @@ const DataAdditionalMenu = (
   setOpen = () => {},
   isRenameButton,
   sideMenu = false,
+  canModify = true,
 ) => {
   return (
     <Menu>
@@ -36,7 +37,7 @@ const DataAdditionalMenu = (
           </Menu.Item>{' '}
         </>
       )}
-      {isRenameButton && (
+      {isRenameButton && canModify && (
         <Menu.Item
           key={`${id} rename ${type}`}
           onClick={e => {
@@ -49,28 +50,32 @@ const DataAdditionalMenu = (
           </Space>
         </Menu.Item>
       )}
-      <Menu.Item
-        key={`${id} move ${type}`}
-        onClick={e => {
-          handleMenuClick(e, setSelectedMenuActionInfo, setOpen);
-        }}
-      >
-        <Space>
-          <ArrowRightOutlined />
-          <span> Move to</span>
-        </Space>
-      </Menu.Item>
-      <Menu.Item
-        key={`${id} copy ${type}`}
-        onClick={e => {
-          handleMenuClick(e, setSelectedMenuActionInfo, setOpen);
-        }}
-      >
-        <Space>
-          <CopyOutlined />
-          <span> Copy to </span>
-        </Space>
-      </Menu.Item>
+      {canModify && (
+        <Menu.Item
+          key={`${id} move ${type}`}
+          onClick={e => {
+            handleMenuClick(e, setSelectedMenuActionInfo, setOpen);
+          }}
+        >
+          <Space>
+            <ArrowRightOutlined />
+            <span> Move to</span>
+          </Space>
+        </Menu.Item>
+      )}
+      {canModify && (
+        <Menu.Item
+          key={`${id} copy ${type}`}
+          onClick={e => {
+            handleMenuClick(e, setSelectedMenuActionInfo, setOpen);
+          }}
+        >
+          <Space>
+            <CopyOutlined />
+            <span> Copy to </span>
+          </Space>
+        </Menu.Item>
+      )}
       <Menu.Item
         key={`${id} download ${type} `}
         onClick={e => {
@@ -82,17 +87,19 @@ const DataAdditionalMenu = (
           <span> Download</span>
         </Space>
       </Menu.Item>
-      <Menu.Item
-        key={`${id} delete ${type} `}
-        onClick={e => {
-          handleMenuClick(e, setSelectedMenuActionInfo);
-        }}
-      >
-        <Space>
-          <DeleteOutlined />
-          <span> Delete</span>
-        </Space>
-      </Menu.Item>
+      {canModify && (
+        <Menu.Item
+          key={`${id} delete ${type} `}
+          onClick={e => {
+            handleMenuClick(e, setSelectedMenuActionInfo);
+          }}
+        >
+          <Space>
+            <DeleteOutlined />
+            <span> Delete</span>
+          </Space>
+        </Menu.Item>
+      )}
     </Menu>
   );
 };

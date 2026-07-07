@@ -1,70 +1,105 @@
-# Getting Started with Create React App
+# File Manager — Client
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+SPA-клиент облачного файлового менеджера: загрузка, скачивание, перемещение, копирование, переименование и удаление файлов и папок, древовидная навигация, авторизация по JWT с молчаливым refresh-flow.
 
-## Available Scripts
+Серверная часть и API лежат в [`../server`](../server).
 
-In the project directory, you can run:
+## Стек
 
-### `npm start`
+- **React 18** + **React Router 6** — SPA, защищённые маршруты
+- **MobX** + `mobx-react-lite` — управление состоянием (user / files / posts / errors), observer-компоненты
+- **Ant Design 5** + `@ant-design/icons` — UI-кит (таблицы, модалки, dropdown, drag-and-drop)
+- **Axios** — HTTP-клиент с request/response interceptors, авто-refresh access-токена и принудительный logout при провале refresh
+- **dayjs** — форматирование дат
+- **Create React App** (`react-scripts 5`) — сборка и dev-сервер
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Архитектура
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+Проект организован по принципам **Feature-Sliced Design**:
 
-### `npm test`
+```
+src/
+├── app/                   # точка входа приложения
+│   ├── App.jsx            # корневой компонент
+│   ├── Router.jsx         # маршруты, защита по isAuth/isActivated
+│   ├── providers/         # withRouter и композиция HOC-провайдеров
+│   ├── store/             # MobX-сторы: userStore, filesStore, postsStore, errorStore
+│   └── styles/
+├── pages/                 # страничные композиции (main, activation)
+├── widgets/               # независимые блоки (data-action-panel, data-view-component, data-view-panel)
+├── features/              # пользовательские сценарии:
+│   ├── login_signup/      #   логин и регистрация
+│   ├── uploadFile/        #   загрузка файлов
+│   ├── download/          #   скачивание (одиночное и ZIP)
+│   ├── create-directory/  #   создание папки
+│   ├── rename/            #   переименование
+│   ├── move/ copy/        #   перемещение и копирование
+│   ├── delete/            #   удаление
+│   ├── open/              #   открытие папки
+│   ├── breadcrumbs/       #   хлебные крошки
+│   └── logout/
+├── entities/              # доменные сущности (folder, data-list-view, data-table-view, data-side-menu)
+└── shared/                # переиспользуемая база:
+    ├── api/               #   сервисные обёртки (authService, filesService, postService)
+    ├── http/              #   настроенный axios-инстанс + interceptors
+    ├── hooks/             #   useUpload, useDownload
+    ├── lib/               #   утилиты (handleDelete, handleMenuClick…)
+    └── ui/                #   button, menu, modal, navbar, loader
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Алиасы импортов настроены через `jsconfig.json` (`baseUrl: "./src"`), поэтому импорты идут как `import { ... } from 'features'`, `'entities'`, `'shared/ui/...'`.
 
-### `npm run build`
+## Аутентификация
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- При логине сервер выдаёт `accessToken` (JSON) и кладёт `refreshToken` в **httpOnly cookie**.
+- `accessToken` хранится в `localStorage` и автоматически подставляется в `Authorization: Bearer …` через request-interceptor (`src/shared/http/index.js`).
+- При получении **401** response-interceptor однократно дёргает `GET /api/refresh`, обновляет access-токен и повторяет исходный запрос.
+- Если refresh упал — interceptor сам очищает токен, сбрасывает `userStore.isAuth` / `userStore.user` и пользователь возвращается на форму логина без бесконечного цикла.
+- На старте приложения вызывается `userStore.checkAuth()` — silent-refresh для авто-логина по cookie.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Возможности
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- Регистрация с подтверждением по email (активационная ссылка)
+- Логин / logout, чекбокс «запомнить меня»
+- Дерево папок, открытие, breadcrumbs
+- Множественная загрузка файлов (`multipart/form-data`)
+- Скачивание выбранных файлов и папок единым ZIP-архивом (генерируется на сервере, прогресс на клиенте)
+- Переименование, удаление, перемещение и копирование (с рекурсивным копированием подпапок)
+- Контекстные меню, drag-and-drop через `react-draggable`
 
-### `npm run eject`
+## Быстрый старт
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Требования
+- Node.js ≥ 18
+- Запущенный backend из `../server` (по умолчанию `http://localhost:4000`)
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### Установка и запуск
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```bash
+npm install
+npm start          # dev-сервер на http://localhost:3000
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### Сборка
 
-## Learn More
+```bash
+npm run build      # production-сборка в build/
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### Конфигурация API
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+URL бэкенда задан константой в `src/shared/http/index.js`:
 
-### Code Splitting
+```js
+export const API_URL = 'http://localhost:4000/api';
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+При деплое или смене порта правится здесь (или выносится в `.env`/`REACT_APP_*` по желанию).
 
-### Analyzing the Bundle Size
+## Скрипты
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+| Команда         | Назначение                                  |
+| --------------- | ------------------------------------------- |
+| `npm start`     | dev-сервер с hot-reload                     |
+| `npm run build` | production-сборка                           |
+| `npm test`      | запуск тестов (react-scripts / Jest)        |

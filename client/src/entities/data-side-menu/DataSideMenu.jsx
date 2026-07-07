@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { FolderOutlined, FileOutlined } from '@ant-design/icons';
 import { Menu } from 'antd';
@@ -14,6 +14,7 @@ import CreateDirectory from 'features/create-directory/CreateDirectory';
 
 const DataSideMenu = () => {
   const { filesStore } = useContext(FilesContext);
+  const canModify = useCallback(() => true, []);
   const [items, setItems] = useState([]);
   const [filesIds, setFilesIds] = useState([]);
   const rootKey = filesStore.rootKey;
@@ -35,7 +36,7 @@ const DataSideMenu = () => {
   useEffect(() => {
     filesStore.getFolders();
     filesStore.getFiles();
-  }, []);
+  }, [filesStore]);
 
   useEffect(() => {
     if (filesStore.folders) {
@@ -65,6 +66,7 @@ const DataSideMenu = () => {
                     isRenameButton={true}
                     sideMenu={true}
                     name={obj.foldername}
+                    canModify={canModify(item)}
                   />
                 </div>
               </div>
@@ -87,6 +89,7 @@ const DataSideMenu = () => {
                     isRenameButton={true}
                     sideMenu={true}
                     name={obj.foldername}
+                    canModify={canModify(item)}
                   />
                 </div>
               </div>
@@ -96,8 +99,9 @@ const DataSideMenu = () => {
         }
       });
 
-      const files = filesStore.files.map(item => {
-        if (item.folderId === rootFolder?._id) {
+      const files = filesStore.files
+        .filter(item => item.folderId === rootFolder?._id)
+        .map(item => {
           return {
             key: item._id,
             label: (
@@ -112,14 +116,14 @@ const DataSideMenu = () => {
                     isRenameButton={true}
                     sideMenu={true}
                     name={item.filename}
+                    canModify={canModify(item)}
                   />
                 </div>
               </div>
             ),
             icon: <FileOutlined />,
           };
-        }
-      });
+        });
 
       const filesId = filesStore.files.map(item => item._id);
 
@@ -145,13 +149,20 @@ const DataSideMenu = () => {
         });
       }
     }
-  }, [filesStore.folders, filesStore.files]);
+  }, [
+    filesStore,
+    filesStore.folders,
+    filesStore.files,
+    rootFolder?._id,
+    rootFolder?.foldername,
+    canModify,
+  ]);
 
   useEffect(() => {
     if (filesStore?.selectedKeys?.length === 0) {
       filesStore.setOpenFolder(rootKey);
     }
-  }, [filesStore.selectedKeys]);
+  }, [filesStore, filesStore.selectedKeys, rootKey]);
 
   useEffect(() => {
     const parentFolders = [];
@@ -176,7 +187,7 @@ const DataSideMenu = () => {
       setOpenStateKeys([filesStore.openFolder, ...result]);
       filesStore.setOpenFolderParentsList(result);
     }
-  }, [filesStore.openFolder]);
+  }, [filesStore, filesStore.openFolder]);
 
   const onOpenChange = openKeys => {
     if (openKeys.length >= refOpenKeysLength.current) {
@@ -193,9 +204,9 @@ const DataSideMenu = () => {
         }
       });
       if (deselectedFolder !== rootKey) {
-        const { rootFolderId, _id } = filesStore.folders.find(
-          item => item._id === deselectedFolder,
-        );
+        const deselectedItem = filesStore.folders.find(item => item._id === deselectedFolder);
+        if (!deselectedItem) return;
+        const { rootFolderId, _id } = deselectedItem;
 
         const childFolders = [];
 
@@ -243,8 +254,9 @@ const DataSideMenu = () => {
 
   const onDeselect = openKeys => {
     if (openKeys.key !== rootKey) {
-      const { rootFolderId } = filesStore.folders.find(item => item._id === openKeys.key);
-      filesStore.setOpenFolder(rootFolderId);
+      const deselectedItem = filesStore.folders.find(item => item._id === openKeys.key);
+      if (!deselectedItem) return;
+      filesStore.setOpenFolder(deselectedItem.rootFolderId);
       refOpenKeys.current = openKeys.keyPath.filter(key => key !== openKeys.key);
       refOpenKeysLength.current = refOpenKeys.current.length;
     }
@@ -255,7 +267,7 @@ const DataSideMenu = () => {
       method: selectedMenuActionInfo?.action === 'move' ? 'move' : 'copy',
       dataToMove: [selectedMenuActionInfo.id],
     });
-  }, [selectedMenuActionInfo.action]);
+  }, [selectedMenuActionInfo.action, selectedMenuActionInfo.id]);
 
   const dataToRename = {
     type: selectedMenuActionInfo.type,

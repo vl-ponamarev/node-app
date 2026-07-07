@@ -1,5 +1,5 @@
 import axios from 'axios';
-export const API_URL = 'http://localhost:4000/api';
+export const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:4000/api';
 
 const api = axios.create({
   withCredentials: true,
@@ -33,6 +33,10 @@ const setupInterceptors = () => {
           return api.request(originalRequest);
         } catch (e) {
           console.error('НЕ АВТОРИЗОВАН');
+          localStorage.removeItem('token');
+          const { userStore } = await import('index');
+          userStore.setAuth(false);
+          userStore.setUser({});
         }
       }
       throw error;

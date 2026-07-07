@@ -76,7 +76,9 @@ function EnterForm({ action, user }) {
             </Form.Item>
             {action === 'login' ? (
               <div style={{ marginBottom: 10 }}>
-                <a href="">Forgot password</a>
+                <Button type="link" style={{ padding: 0 }}>
+                  Forgot password
+                </Button>
               </div>
             ) : null}
           </div>

@@ -1,5 +1,4 @@
 import { Modal } from 'antd';
-import { Delete } from 'features';
 
 export const dropDownMenuMethods = new Map([
   [

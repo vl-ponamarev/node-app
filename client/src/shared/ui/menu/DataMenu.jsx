@@ -54,7 +54,7 @@ const DataMenu = ({ setMenuValue, folders, method }) => {
       setOpenKeys([rootKey]);
       setSelectedKey(rootKey);
     }
-  }, [folders]);
+  }, [folders, filesStore.folders, method, rootFolder?._id, rootFolder?.foldername, rootKey]);
 
   const handleSelect = ({ key }) => {
     setSelectedKey(key);

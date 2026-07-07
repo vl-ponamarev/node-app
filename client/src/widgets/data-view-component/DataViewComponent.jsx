@@ -8,14 +8,13 @@ import { DataListView } from 'entities/index';
 const DataViewComponent = ({ param, levelUp, setLevelUp }) => {
   const [initialData, setInitialData] = useState(null);
   const { filesStore } = useContext(FilesContext);
-  const [openFoldersState, setOpenFoldersState] = useState({});
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const rootFolder = filesStore.openFolder;
   const rootKey = filesStore.rootKey;
 
   useEffect(() => {
     filesStore.setSelectedRowKeysStore(selectedRowKeys);
-  }, [selectedRowKeys]);
+  }, [selectedRowKeys, filesStore]);
 
   useEffect(() => {
     setSelectedRowKeys([]);
@@ -33,6 +32,7 @@ const DataViewComponent = ({ param, levelUp, setLevelUp }) => {
               fileSize: '',
               id: item._id,
               type: 'folder',
+              owner: item.owner,
             };
           });
 
@@ -46,6 +46,7 @@ const DataViewComponent = ({ param, levelUp, setLevelUp }) => {
               id: item._id,
               type: 'file',
               mimetype: item.mimetype,
+              owner: item.owner,
             };
           });
         if (rootFolder === rootKey) {
@@ -68,6 +69,7 @@ const DataViewComponent = ({ param, levelUp, setLevelUp }) => {
               fileSize: '',
               id: item._id,
               type: 'folder',
+              owner: item.owner,
             };
           });
 
@@ -81,6 +83,7 @@ const DataViewComponent = ({ param, levelUp, setLevelUp }) => {
               id: item._id,
               type: 'file',
               mimetype: item.mimetype,
+              owner: item.owner,
             };
           });
         if (rootFolder === '6799ec01536a01175c1ad097') {
@@ -94,7 +97,16 @@ const DataViewComponent = ({ param, levelUp, setLevelUp }) => {
         }
       }
     }
-  }, [filesStore.folders, param, filesStore.selectedKeys, filesStore.files, filesStore.openFolder]);
+  }, [
+    filesStore,
+    filesStore.folders,
+    param,
+    filesStore.selectedKeys,
+    filesStore.files,
+    filesStore.openFolder,
+    rootFolder,
+    rootKey,
+  ]);
 
   useEffect(() => {
     setTimeout(() => {
@@ -111,15 +123,11 @@ const DataViewComponent = ({ param, levelUp, setLevelUp }) => {
         const parentFolder = filesStore.folders.find(item => item._id === rootFolderId);
 
         if (parentFolder) {
-          setOpenFoldersState({
-            openFolderItem: openFolderItem._id,
-            parentFolder: parentFolder._id,
-          });
           filesStore.setOpenFolder(parentFolder._id);
         }
       }
     }
-  }, [levelUp]);
+  }, [levelUp, filesStore]);
 
   return param ? (
     <DataListView

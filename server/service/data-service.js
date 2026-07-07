@@ -7,13 +7,19 @@ const { ObjectId } = require('mongodb');
 const FilesStoreModel = require('../models/files-store-model');
 const FolderModel = require('../models/folders-model');
 const archiver = require('archiver');
+const ApiError = require('../exceptions/api-error');
 
 class DataService {
+  ownerFilter() {
+    return {};
+  }
+
   storage = multer.diskStorage({
     destination: (req, file, cb) => {
       cb(null, process.env.UPLOAD_URL);
     },
     filename: (req, file, cb) => {
+      file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8');
       const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
       const extension = file.originalname.split('.').pop();
       cb(null, `${file.fieldname}-${uniqueSuffix}.${extension}`);
@@ -24,7 +30,7 @@ class DataService {
 
   async getFiles() {
     try {
-      const files = await FilesStoreModel.find();
+      const files = await FilesStoreModel.find({});
       return files;
     } catch (error) {
       throw new Error(`Failed to get files: ${error.message}`);
@@ -48,14 +54,16 @@ class DataService {
       throw new Error(`Failed to create files: ${error.message}`);
     }
   }
+
   async getFolders() {
     try {
-      const folders = await FolderModel.find();
+      const folders = await FolderModel.find({});
       return folders;
     } catch (error) {
       throw new Error(`Failed to get folders: ${error.message}`);
     }
   }
+
   async createFolder(folder) {
     try {
       const result = await FolderModel.create(folder);
@@ -68,55 +76,52 @@ class DataService {
       return {
         success: false,
         error: 'Error saving folder to database',
-        error: error,
+        details: error.message,
       };
     }
   }
 
-  async editFolder(folderId, folderData) {
-    try {
-      const post = await FolderModel.findByIdAndUpdate(
-        folderId,
-        { foldername: folderData },
-        {
-          new: true,
-          returnOriginal: false,
-        },
-      );
-      return post;
-    } catch (err) {
-      return { success: false, error: 'Error editing folder in database', err };
+  async editFolder(folderId, foldername, user) {
+    const post = await FolderModel.findOneAndUpdate(
+      { _id: folderId, ...this.ownerFilter(user) },
+      { foldername },
+      {
+        new: true,
+        returnOriginal: false,
+      },
+    );
+    if (!post) {
+      throw ApiError.Forbidden();
     }
+    return post;
   }
 
-  async editFile(fileId, fileData) {
-    try {
-      const post = await FilesStoreModel.findByIdAndUpdate(
-        fileId,
-        { originalname: fileData },
-        {
-          new: true,
-          returnOriginal: false,
-        },
-      );
-      return post;
-    } catch (err) {
-      return { success: false, error: 'Error editing folder in database', err };
+  async editFile(fileId, originalname, user) {
+    const post = await FilesStoreModel.findOneAndUpdate(
+      { _id: fileId, ...this.ownerFilter(user) },
+      { originalname },
+      {
+        new: true,
+        returnOriginal: false,
+      },
+    );
+    if (!post) {
+      throw ApiError.Forbidden();
     }
+    return post;
   }
 
-  async moveItems(data) {
+  async moveItems(data, user) {
     try {
       const folders = data.data?.items?.folders;
       const files = data.data?.items?.files;
 
       if (Array.isArray(folders)) {
         const foldersIds = folders.map(id => ObjectId.createFromHexString(id));
-        const filesIds = files.map(id => new ObjectId(id));
-        const filesFilter = { _id: { $in: files } };
+        const filesFilter = { _id: { $in: files }, ...this.ownerFilter(user) };
 
         const foldersResult = await FolderModel.updateMany(
-          { _id: { $in: foldersIds } },
+          { _id: { $in: foldersIds }, ...this.ownerFilter(user) },
           { $set: { rootFolderId: data.data?.rootFolderId } },
         );
 
@@ -128,34 +133,36 @@ class DataService {
         console.error('data.data.items.folders is not an array or is undefined');
       }
     } catch (err) {
-      return { success: false, error: 'Error editing folder in database', err };
+      return { success: false, error: 'Error moving items', details: err.message };
     }
   }
 
-  async copyItems(data) {
+  async copyItems(data, user) {
     try {
       const { folders: folderIds, files: fileIds } = data.data?.items || {};
       const newRootFolderId = data.data?.rootFolderId || {};
+      const ownerFilter = this.ownerFilter(user);
+      const owner = user.id;
+
       async function copyFolder(folderId, newRootFolderId) {
-        const folder = await FolderModel.findById(folderId);
+        const folder = await FolderModel.findOne({ _id: folderId, ...ownerFilter });
         if (!folder) return null;
-        // Создание новой папки с новым rootFolderId
         const newFolder = await FolderModel.create({
           ...folder.toObject(),
           _id: undefined,
+          owner,
           rootFolderId: newRootFolderId,
         });
-        // Копирование вложенных файлов
-        const files = await FilesStoreModel.find({ folderId });
+        const files = await FilesStoreModel.find({ folderId, ...ownerFilter });
         for (const file of files) {
           await FilesStoreModel.create({
             ...file.toObject(),
             _id: undefined,
+            owner,
             folderId: newFolder._id,
           });
         }
-        // Копирование вложенных папок (рекурсивно)
-        const nestedFolders = await FolderModel.find({ rootFolderId: folder._id });
+        const nestedFolders = await FolderModel.find({ rootFolderId: folder._id, ...ownerFilter });
         for (const nestedFolder of nestedFolders) {
           await copyFolder(nestedFolder._id, newFolder._id);
         }
@@ -163,17 +170,17 @@ class DataService {
         return newFolder;
       }
 
-      // Копирование папок
       for (const folderId of folderIds) {
         await copyFolder(folderId, newRootFolderId);
       }
-      // Копирование файлов
+
       for (const fileId of fileIds) {
-        const file = await FilesStoreModel.findById(fileId);
+        const file = await FilesStoreModel.findOne({ _id: fileId, ...ownerFilter });
         if (file) {
           await FilesStoreModel.create({
             ...file.toObject(),
             _id: undefined,
+            owner,
             folderId: newRootFolderId,
           });
         }
@@ -182,34 +189,42 @@ class DataService {
       return { success: true };
     } catch (err) {
       console.error(err);
-      return { success: false, error: 'Error copying items in database', err };
+      return { success: false, error: 'Error copying items', details: err.message };
     }
   }
 
-  async deleteFolders(foldersId) {
+  async deleteFolders(foldersId, user) {
     try {
-      const res = await FolderModel.deleteMany({ _id: { $in: foldersId } });
+      const ids = Array.isArray(foldersId) ? foldersId : foldersId?.data || [];
+      const ownerFilter = this.ownerFilter(user);
 
-      for (const folderId of foldersId) {
-        const filesToDelete = await this.getFilesByFolderId(folderId);
-        await this.deleteFiles({ data: filesToDelete });
+      const res = await FolderModel.deleteMany({ _id: { $in: ids }, ...ownerFilter });
 
-        const nestedFolders = await FolderModel.find({ rootFolderId: folderId });
-        await this.deleteFolders({
-          data: nestedFolders.map(folder => folder._id),
-        });
+      for (const folderId of ids) {
+        const filesToDelete = await FilesStoreModel.find({ folderId, ...ownerFilter });
+        if (filesToDelete.length > 0) {
+          await this.deleteFiles(filesToDelete.map(f => f._id), user);
+        }
+
+        const nestedFolders = await FolderModel.find({ rootFolderId: folderId, ...ownerFilter });
+        if (nestedFolders.length > 0) {
+          await this.deleteFolders(nestedFolders.map(folder => folder._id), user);
+        }
       }
 
       return res;
     } catch (err) {
-      return { success: false, error: 'Error deleting folder in database', err };
+      return { success: false, error: 'Error deleting folder in database', details: err.message };
     }
   }
 
-  async deleteFiles(files) {
+  async deleteFiles(files, user) {
     try {
+      const ids = Array.isArray(files) ? files : files?.data || [];
+
       const filesToDelete = await FilesStoreModel.find({
-        _id: { $in: files },
+        _id: { $in: ids },
+        ...this.ownerFilter(user),
       });
 
       const deletePromises = filesToDelete.map(async file => {
@@ -222,12 +237,13 @@ class DataService {
       await Promise.all(deletePromises);
 
       const res = await FilesStoreModel.deleteMany({
-        _id: { $in: files },
+        _id: { $in: filesToDelete.map(f => f._id) },
       });
 
       return {
         status: 'OK',
         message: 'Files deleted successfully',
+        deletedCount: res.deletedCount,
       };
     } catch (err) {
       console.error(err);
@@ -237,7 +253,7 @@ class DataService {
 
   async downloadFile(fileId, res) {
     try {
-      const file = await FilesStoreModel.findOne({ fileId });
+      const file = await FilesStoreModel.findOne({ _id: fileId });
       if (file) {
         const { filename } = file;
         const filePath = path.join(process.env.UPLOAD_URL, filename);
@@ -256,22 +272,20 @@ class DataService {
     }
   }
 
-  async download(data, res) {
+  async download(data, res, requestingUserId) {
     const { files, folders } = data;
 
     try {
-      // Создаем временную директорию
-      const tempDir = path.join(__dirname, 'temp');
+      const tempDir = path.join(__dirname, 'temp', `${requestingUserId}-${Date.now()}`);
       fs.mkdirSync(tempDir, { recursive: true });
 
-      // Копируем файлы в временную директорию
       if (files && files.length > 0) {
         for (const fileId of files) {
           const file = await FilesStoreModel.findOne({ _id: fileId });
           if (file) {
-            const { filename } = file;
+            const { filename, originalname } = file;
             const sourcePath = path.join(process.env.UPLOAD_URL, filename);
-            const destPath = path.join(tempDir, filename);
+            const destPath = path.join(tempDir, originalname || filename);
 
             if (fs.existsSync(sourcePath)) {
               fs.copyFileSync(sourcePath, destPath);
@@ -284,14 +298,12 @@ class DataService {
         }
       }
 
-      // Добавляем папки в структуру
       if (folders && folders.length > 0) {
         for (const folderId of folders) {
           await createFolderStructure(folderId, tempDir);
         }
       }
 
-      // Настраиваем ZIP-архиватор
       const archive = archiver('zip', { zlib: { level: 9 } });
 
       res.attachment(`download.zip`);
@@ -302,13 +314,10 @@ class DataService {
       });
 
       archive.pipe(res);
-
-      // Добавляем временную директорию в архив
       archive.directory(tempDir + '/', false);
 
       await archive.finalize();
 
-      // Удаляем временную директорию после завершения
       fs.rmSync(tempDir, { recursive: true, force: true });
     } catch (error) {
       console.error('Failed to download:', error.message);
@@ -321,19 +330,18 @@ async function createFolderStructure(folderId, parentPath) {
   const folder = await FolderModel.findOne({ _id: folderId });
   if (!folder) return;
   const currentFolderPath = path.join(parentPath, folder.foldername);
-  fs.mkdirSync(currentFolderPath, { recursive: true }); // Создаем текущую папку
-  // Получаем вложенные папки
+  fs.mkdirSync(currentFolderPath, { recursive: true });
+
   const subFolders = await FolderModel.find({ rootFolderId: folderId });
   for (const subFolder of subFolders) {
-    await createFolderStructure(subFolder.id, currentFolderPath); // Рекурсивно создаем вложенные папки
+    await createFolderStructure(subFolder._id, currentFolderPath);
   }
-  // Получаем файлы в текущей папке
-  const files = await FilesStoreModel.find({ folderId: folder.id });
+
+  const files = await FilesStoreModel.find({ folderId: folder._id });
   for (const file of files) {
-    const sourceFilePath = path.join(process.env.UPLOAD_URL, file.filename); // Путь к исходному файлу
-    const destinationFilePath = path.join(currentFolderPath, file.filename); // Путь к целевому файлу
+    const sourceFilePath = path.join(process.env.UPLOAD_URL, file.filename);
+    const destinationFilePath = path.join(currentFolderPath, file.originalname || file.filename);
     try {
-      // Копируем файл из исходного пути в целевой
       fs.copyFileSync(sourceFilePath, destinationFilePath);
     } catch (error) {
       console.error(`Error copying file ${file.filename}:`, error);

@@ -69,14 +69,14 @@ const DataListView = ({ initialData, setLevelUp, selectedRowKeys, setSelectedRow
         setClickTimeout(timeout);
       }
     },
-    [clickTimeout, setSelectedRowKeys],
+    [clickTimeout, setSelectedRowKeys, filesStore, selectedRowKeys, setLevelUp],
   );
   useEffect(() => {
     setModalData({
       method: selectedMenuActionInfo?.action === 'move' ? 'move' : 'copy',
       dataToMove: selectedKeys,
     });
-  }, [selectedMenuActionInfo.action]);
+  }, [selectedMenuActionInfo.action, selectedKeys]);
 
   const dataToRename = {
     type: selectedMenuActionInfo.type,
@@ -106,6 +106,8 @@ const DataListView = ({ initialData, setLevelUp, selectedRowKeys, setSelectedRow
               contextMenu?.record?.type,
               setOpen,
               isRenameButton,
+              false,
+              true,
             )
           }
           trigger={['click']}

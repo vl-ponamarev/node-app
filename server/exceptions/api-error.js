@@ -2,7 +2,7 @@ module.exports = class ApiError extends Error {
   status;
   errors;
 
-  constructor(message, status, errors = []) {
+  constructor(status, message, errors = []) {
     super(message);
     this.status = status;
     this.errors = errors;
@@ -14,5 +14,13 @@ module.exports = class ApiError extends Error {
 
   static BadRequest(message, errors = []) {
     return new ApiError(400, message, errors);
+  }
+
+  static Forbidden(message = 'Доступ запрещён') {
+    return new ApiError(403, message);
+  }
+
+  static ServiceUnavailable(message = 'Сервис временно недоступен') {
+    return new ApiError(503, message);
   }
 };

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from 'react';
+import React, { useContext } from 'react';
 import { observer } from 'mobx-react-lite';
 import { UserContext } from '../../index';
 import { MainPage } from 'pages';
@@ -7,12 +7,6 @@ import Loader from 'shared/ui/loader/Loader';
 
 function LoginAction() {
   const { userStore } = useContext(UserContext);
-
-  useEffect(() => {
-    if (localStorage.getItem('token')) {
-      userStore.checkAuth();
-    }
-  }, []);
 
   if (userStore.isLoading) {
     return <Loader />;

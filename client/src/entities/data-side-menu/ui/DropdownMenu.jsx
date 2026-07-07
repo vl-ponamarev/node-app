@@ -20,6 +20,7 @@ const DropdownMenu = ({
   isRenameButton,
   sideMenu,
   name,
+  canModify = true,
 }) => {
   const onClick = ({ key }) => {
     key && handleMenuClick({ key }, setSelectedMenuActionInfo, setOpen);
@@ -50,7 +51,7 @@ const DropdownMenu = ({
     },
     {
       key: `${id} rename ${type} ${name}`,
-      label: isRenameButton && (
+      label: isRenameButton && canModify && (
         <div key={`${id} rename ${type} ${name}`} onClick={onClick}>
           <Space>
             <EditOutlined />
@@ -61,7 +62,7 @@ const DropdownMenu = ({
     },
     {
       key: `${id} move ${type} ${name}`,
-      label: (
+      label: canModify && (
         <div key={`${id} move ${type} ${name}`} onClick={onClick}>
           <Space>
             <ArrowRightOutlined />
@@ -72,7 +73,7 @@ const DropdownMenu = ({
     },
     {
       key: `${id} copy ${type} ${name}`,
-      label: (
+      label: canModify && (
         <div key={`${id} copy ${type} ${name}`} onClick={onClick}>
           <Space>
             <CopyOutlined />
@@ -94,7 +95,7 @@ const DropdownMenu = ({
     },
     {
       key: `${id} delete ${type} ${name}`,
-      label: (
+      label: canModify && (
         <div key={`${id} delete ${type} ${name}`} onClick={onClick}>
           <Space>
             <DeleteOutlined />

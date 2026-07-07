@@ -1,6 +1,6 @@
 const { validationResult } = require('express-validator')
 const UserService = require('../service/user-service')
-const ApiError = require('../exeptions/api-error')
+const ApiError = require('../exceptions/api-error')
 
 class UserController {
   async registration(req, res, next) {
@@ -60,7 +60,7 @@ class UserController {
     try {
       const { refreshToken } = req.cookies;
       if (!refreshToken) {
-        throw new Error('Refresh token not found');
+        return next(ApiError.UnauthorizedError());
       }
       const userData = await UserService.refresh(refreshToken);
       res.cookie('refreshToken', userData.refreshToken, {

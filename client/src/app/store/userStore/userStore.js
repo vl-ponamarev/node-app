@@ -47,7 +47,7 @@ export default class Store {
     } catch (err) {
       console.error(err);
       errorStore.setError({
-        message: err.message,
+        message: err.response?.data?.message || err.message,
         status: true,
         url: '',
         timestamp: new Date().toISOString(),
@@ -75,7 +75,7 @@ export default class Store {
     } catch (err) {
       console.error(err);
       errorStore.setError({
-        message: err.message,
+        message: err.response?.data?.message || err.message,
         status: true,
         url: '',
         timestamp: new Date().toISOString(),
@@ -107,6 +107,9 @@ export default class Store {
       this.setUser(response.data.user);
     } catch (err) {
       console.error(err.message);
+      localStorage.removeItem('token');
+      this.setAuth(false);
+      this.setUser({});
     } finally {
       this.setLoading(false);
     }

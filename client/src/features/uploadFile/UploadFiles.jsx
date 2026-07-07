@@ -23,7 +23,7 @@ const UploadFiles = ({ isActionPanel = false, selectedMenuActionInfo }) => {
 
   useEffect(() => {
     isActionPanel && handleClick();
-  }, [selectedMenuActionInfo]);
+  }, [selectedMenuActionInfo, isActionPanel]);
 
   useEffect(() => {
     const handleSave = async () => {
@@ -49,7 +49,7 @@ const UploadFiles = ({ isActionPanel = false, selectedMenuActionInfo }) => {
       }
     };
     handleSave();
-  }, [files, userStore?.user?.id]);
+  }, [files, userStore?.user?.id, fileFolder, filesStore]);
 
   return (
     <>
